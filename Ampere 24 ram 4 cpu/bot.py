@@ -43,8 +43,9 @@ except Exception as e:
     print(f"Failed to fetch Availability Domains: {e}")
     exit(1)
 
+ImageOCID = "ocid1.image.oc1.ap-singapore-1.aaaaaaaawntxufyor65yjvl744hj5p3fbu77jdafnqlpxayley2braeynp5q"
 # 2. Auto-fetch ARM image OCID if not explicitly provided in .env
-image_id = os.getenv("OCI_IMAGE_ID")
+image_id = ImageOCID
 if not image_id:
     print("OCI_IMAGE_ID not set. Searching for latest Canonical Ubuntu ARM image...")
     images = compute_client.list_images(
