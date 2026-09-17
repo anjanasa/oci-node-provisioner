@@ -60,12 +60,12 @@ for i in range(1, total_attempts + 1):
                 image_id=image_id,
                 boot_volume_size_in_gbs=100
             ),
-            create_vnic_details=oci.core.models.CreateVnicDetails(
-                subnet_id=subnet_id,
-                assign_public_ip=True,
-                assign_private_dns_record=True,
-                display_name="forexalertsvnic"
-            ),
+create_vnic_details=oci.core.models.CreateVnicDetails(
+    subnet_id=subnet_id,
+    assign_public_ip=True,
+    display_name="forexalertsvnic",
+    hostname_label="forexalerts"  # Required when assign_private_dns_record is set
+),
             metadata={
                 "ssh_authorized_keys": str(public_ssh_key).strip()
             }
