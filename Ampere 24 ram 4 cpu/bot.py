@@ -6,9 +6,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Setup configuration from environment variables
+# Updated key loading logic in Python script:
+raw_key = os.getenv("OCI_PRIVATE_KEY", "")
+formatted_key = raw_key.replace('\\n', '\n') if raw_key else None
+
 config = {
     "user": os.getenv("OCI_USER_ID"),
-    "key_content": os.getenv("OCI_PRIVATE_KEY"),
+    "key_content": formatted_key,
     "fingerprint": os.getenv("OCI_FINGERPRINT"),
     "tenancy": os.getenv("OCI_TENANCY_ID"),
     "region": os.getenv("OCI_REGION")
