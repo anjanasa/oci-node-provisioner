@@ -16,7 +16,7 @@ config = {
     "tenancy": os.getenv("OCI_TENANCY_ID"),
     "region": os.getenv("OCI_REGION", "ap-singapore-1")
 }
-
+print(config)
 try:
     compute_client = oci.core.ComputeClient(config)
     identity_client = oci.identity.IdentityClient(config)
