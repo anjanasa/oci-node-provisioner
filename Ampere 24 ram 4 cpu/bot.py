@@ -51,9 +51,7 @@ if OVERRIDE_AD:
 else:
     # Standard Singapore AD string variants matching tenancy prefix 'uufj'
     ads = [
-        "uufj:AP-SINGAPORE-1-AD-1",
-        "uufj:ap-singapore-1-AD-1",
-        "uufj:SIN-AD-1"
+        "uufj:AP-SINGAPORE-1-AD-1"
     ]
 
 # Initialize Client
