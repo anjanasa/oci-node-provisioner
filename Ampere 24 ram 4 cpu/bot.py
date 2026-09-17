@@ -51,7 +51,6 @@ if OVERRIDE_AD:
 else:
     # Standard Singapore AD string variants matching tenancy prefix 'uufj'
     ads = [
-        "uufj:AP-SINGAPORE-1-AD-1",
         "AP-SINGAPORE-1-AD-1"
     ]
 
