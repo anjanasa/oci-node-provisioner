@@ -5,68 +5,80 @@ import oci
 
 load_dotenv()
 
-# Format raw private key string to handle line breaks correctly
-raw_key = os.getenv("OCI_PRIVATE_KEY", "")
-formatted_key = raw_key.replace('\\n', '\n') if raw_key else None
+# --- 1. STATIC CONFIGURATION & DEFAULTS ---
+USER_OCID = os.getenv("OCI_USER_ID", "ocid1.user.oc1..aaaaaaaa25mmvfcullr5hxqdbod46m2ld7xxiphvn3g2synnl6hezevaihna")
+FINGERPRINT = os.getenv("OCI_FINGERPRINT", "38:40:96:75:6a:78:34:29:e9:ca:63:4f:fc:ad:d7:bb")
+TENANCY_OCID = os.getenv("OCI_TENANCY_ID", "ocid1.tenancy.oc1..aaaaaaaa2kym4idkoemo6nbmsnagzuyl3yvkiaekfxw4i3yx3ahvbeidw6ea")
+REGION = os.getenv("OCI_REGION", "ap-singapore-1")
+
+KEY_FILE = os.getenv("OCI_KEY_FILE", "path/to/private_key.pem")
+RAW_KEY_CONTENT = os.getenv("OCI_PRIVATE_KEY")
 
 config = {
-    "user": os.getenv("OCI_USER_ID"),
-    "key_content": formatted_key,
-    "fingerprint": os.getenv("OCI_FINGERPRINT"),
-    "tenancy": os.getenv("OCI_TENANCY_ID"),
-    "region": os.getenv("OCI_REGION", "ap-singapore-1")
+    "user": USER_OCID,
+    "fingerprint": FINGERPRINT,
+    "tenancy": TENANCY_OCID,
+    "region": REGION
 }
-print(config)
+
+# Resolve private key from file path or raw environment string
+if RAW_KEY_CONTENT:
+    config["key_content"] = RAW_KEY_CONTENT.replace('\\n', '\n')
+elif KEY_FILE and os.path.exists(KEY_FILE):
+    config["key_file"] = KEY_FILE
+else:
+    # Fallback to key file path if specified directly
+    config["key_file"] = KEY_FILE
+
+# --- 2. RESOURCE DEFAULTS ---
+SUBNET_ID = os.getenv(
+    "OCI_SUBNET_ID", 
+    "ocid1.subnet.oc1.ap-singapore-1.aaaaaaaafwgvzvekwtlijdwtfpoub72wghthj26iojdo42fenbnswxbw6zda"
+)
+IMAGE_ID = os.getenv(
+    "OCI_IMAGE_ID", 
+    "ocid1.image.oc1.ap-singapore-1.aaaaaaaawntxufyor65yjvl744hj5p3fbu77jdafnqlpxayley2braeynp5q"
+)
+PUBLIC_SSH_KEY = os.getenv(
+    "OCI_PUBLIC_SSH_KEY", 
+    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDDhR/ATZS0I7WTmgzipcNNuMJy4itfBgieuPGXXkWKDEWJat/8aAW9r1u+stN3Hyvspk8NayARFmSslxT7cH5oQIRvmbl4IhJ7IfL6QvRQhkaK2Qg0Zwe8M8329J3alayfNUpyygO0wLu8iXhF3PlsRvzxL+Y9ShLK/XNZ2pN8MvnB3JnKFoVtbf5e/3vi/skofOjIws1EziDAyLyIKAxsEVjsy5fY0qbOHLNDu+fALY3u7/ZfV8jA1IjvPkSgM70GD8/kv/5DmqRDcUYg9x3IU1bzfYC0TVGTmBa051h8IBJq2dC39Cxx2lsYA5iHlqEJjeULv1O/gvBfzknlS9kT ssh-key-2026-08-26"
+)
+
+# Static Availability Domain targets for Singapore (ap-singapore-1)
+OVERRIDE_AD = os.getenv("OCI_AVAILABILITY_DOMAIN")
+if OVERRIDE_AD:
+    ads = [OVERRIDE_AD]
+else:
+    # Standard Singapore AD string variants matching tenancy prefix 'uufj'
+    ads = [
+        "uufj:AP-SINGAPORE-1-AD-1",
+        "uufj:ap-singapore-1-AD-1",
+        "uufj:SIN-AD-1"
+    ]
+
+# Initialize Client
 try:
     compute_client = oci.core.ComputeClient(config)
-    identity_client = oci.identity.IdentityClient(config)
-    print("OCI Authentication Successful.")
+    print("OCI Authentication Initialized.")
 except Exception as e:
-    print(f"Authentication Failed: {e}")
+    print(f"Authentication Error: {e}")
     exit(1)
 
-# Execution parameters from environment
-compartment_id = os.getenv("OCI_TENANCY_ID")
-subnet_id = os.getenv("OCI_SUBNET_ID")
-public_ssh_key = os.getenv("OCI_PUBLIC_SSH_KEY")
-
-if not public_ssh_key or public_ssh_key.strip() == "":
-    print("CRITICAL ERROR: OCI_PUBLIC_SSH_KEY is empty or missing!")
-    exit(1)
-
-# 1. Fetch Availability Domains dynamically for ap-singapore-1
-try:
-    ad_response = identity_client.list_availability_domains(compartment_id)
-    ads = [ad.name for ad in ad_response.data]
-    print(f"Detected Availability Domains in {config['region']}: {ads}")
-except Exception as e:
-    print(f"Failed to fetch Availability Domains: {e}")
-    exit(1)
-
-ImageOCID = "ocid1.image.oc1.ap-singapore-1.aaaaaaaawntxufyor65yjvl744hj5p3fbu77jdafnqlpxayley2braeynp5q"
-# 2. Auto-fetch ARM image OCID if not explicitly provided in .env
-image_id = ImageOCID
-if not image_id:
-    print("OCI_IMAGE_ID not set. Searching for latest Canonical Ubuntu ARM image...")
-    images = compute_client.list_images(
-        compartment_id=compartment_id,
-        operating_system="Canonical Ubuntu",
-        shape="VM.Standard.A1.Flex",
-        sort_by="TIMECREATED",
-        sort_order="DESC"
-    ).data
-    for img in images:
-        if "aarch64" in img.display_name.lower():
-            image_id = img.id
-            break
-    if not image_id and images:
-        image_id = images[0].id
-
-print(f"Using Image OCID: {image_id}")
+print("\n" + "=" * 55)
+print(" RUNTIME CONFIGURATION (STATIC) ")
+print("=" * 55)
+print(f"Region:               {config['region']}")
+print(f"Tenancy OCID:         {config['tenancy']}")
+print(f"User OCID:            {config['user']}")
+print(f"Fingerprint:          {config['fingerprint']}")
+print(f"Subnet OCID:          {SUBNET_ID}")
+print(f"Image OCID:           {IMAGE_ID}")
+print(f"Target AD List:       {ads}")
+print("=" * 55 + "\n")
 
 total_attempts = 60
 
-# 3. Instance creation loop
+# --- 3. EXECUTION LOOP ---
 for i in range(1, total_attempts + 1):
     current_ad = ads[(i - 1) % len(ads)]
     print(f"[Attempt {i}/{total_attempts}] Requesting instance in {current_ad}...")
@@ -74,7 +86,7 @@ for i in range(1, total_attempts + 1):
     try:
         request = oci.core.models.LaunchInstanceDetails(
             display_name="FX-Backend-Server",
-            compartment_id=compartment_id,
+            compartment_id=TENANCY_OCID,
             availability_domain=current_ad,
             shape="VM.Standard.A1.Flex",
             shape_config=oci.core.models.LaunchInstanceShapeConfigDetails(
@@ -83,23 +95,23 @@ for i in range(1, total_attempts + 1):
             ),
             source_details=oci.core.models.InstanceSourceViaImageDetails(
                 source_type="image",
-                image_id=image_id,
+                image_id=IMAGE_ID,
                 boot_volume_size_in_gbs=100
             ),
             create_vnic_details=oci.core.models.CreateVnicDetails(
-                subnet_id=subnet_id,
+                subnet_id=SUBNET_ID,
                 assign_public_ip=True,
                 assign_private_dns_record=True,
-                hostname_label="forexalerts",  # Required for private DNS
+                hostname_label="forexalerts",
                 display_name="forexalertsvnic"
             ),
             metadata={
-                "ssh_authorized_keys": str(public_ssh_key).strip()
+                "ssh_authorized_keys": str(PUBLIC_SSH_KEY).strip()
             }
         )
 
         response = compute_client.launch_instance(request)
-        if response.status == 200:
+        if response.status in (200, 202):
             print("SUCCESS! Server creation initialized successfully.")
             exit(0)
 
